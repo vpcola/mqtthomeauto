@@ -1,6 +1,6 @@
-# I2C Example
+# ESP32 MQTT Home Automation Example
 
- 
+
 * This example will show you how to use I2C module by running two tasks on i2c bus:
  
     * read external i2c sensor, here we use a BH1750 light sensor(GY-30 module) for instance.
@@ -27,4 +27,4 @@
     * read the sensor data, if connected.
     * i2c master(ESP32) will write data to i2c slave(ESP32).
     * i2c master(ESP32) will read data from i2c slave(ESP32).
-# mqtthomeauto
+
