@@ -201,7 +201,7 @@ static void mqtt_message_switch_handler(MessageData *md)
     switchnum[0]=*(md->topicName->lenstring.data+md->topicName->lenstring.len-1);
     switchnum[1]='\0';
     str2uint8(&switchport,(const char *)switchnum);
-    if (switchport > 3) // We only have 4 switches! (0 - 3)
+    if (switchport > 8) // We only have 4 switches! (0 - 3)
     {
         xSemaphoreTake(print_mux, portMAX_DELAY);
         printf("Swwitch range error [%d]\n", switchport);
