@@ -1,30 +1,30 @@
 # ESP32 MQTT Home Automation Example
 
 
-* This example will show you how to use I2C module by running two tasks on i2c bus:
+* This example will show you how to use I2C module by running tasks on i2c bus:
  
-    * read external i2c sensor, here we use a BH1750 light sensor(GY-30 module) for instance.
-    * Use one I2C port(master mode) to read or write the other I2C port(slave mode) on one ESP32 chip.
+    * read external i2c sensor, here we use a HTU21D humidity and temperature sensor.
+    * write to an I2C port expander IC (MCP23017) to interfacing with relays
+    * Use I2C port (master mode) in ESP32.
  
 * Pin assignment:
  
-    * slave :
-        * GPIO25 is assigned as the data signal of i2c slave port
-        * GPIO26 is assigned as the clock signal of i2c slave port
-    * master:
-        * GPIO18 is assigned as the data signal of i2c master port
-        * GPIO19 is assigned as the clock signal of i2c master port
+    * I2C master :
+        * GPIO22 is assigned as the SCL (clock) signal of i2c master port
+        * GPIO21 is assigned as the SDA (data)  signal of i2c master port
  
-* Connection:
- 
-    * connect GPIO18 with GPIO25
-    * connect GPIO19 with GPIO26
-    * connect sda/scl of sensor with GPIO18/GPIO19
-    * no need to add external pull-up resistors, driver will enable internal pull-up resistors.
- 
+    *  LED PWM Dimmer
+        * GPIO16 is assigned as a PWM output using the ledc peripheral of the ESP32
+        * GPIO17 is assigned as a PWM output using the ledc peripheral of the ESP32
+        
 * Test items:
  
-    * read the sensor data, if connected.
-    * i2c master(ESP32) will write data to i2c slave(ESP32).
-    * i2c master(ESP32) will read data from i2c slave(ESP32).
+    * Connect to Wifi.
+    * Conned to MQTT Broker securely (using secure web sockets)
+    * Subscribe to topics for the dimmer and the relays/switch connected to the port expander
+    * Periodically read temperature and humidity data (as soon as connected to MQTT), and publish to MQTT
+    * Set port expander data (MCP23017) if data from subscribed topic arrives
+    * Set led pwm data if subscribed topic arrives.
 
+TODO:
+    * Connect an IR Transmitter to control HVAC (air conditioner) and Fan
