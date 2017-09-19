@@ -134,7 +134,7 @@ static const RMTRiseFall oscillate[] = {
 
 #define OSCILLATE_SIZ sizeof(oscillate)/sizeof(oscillate[0])
 
-void toggleOnOff(void)
+void toggleFanOnOff(void)
 {
 	size_t size = POWER_ON_OFF_SIZ;
 
@@ -149,7 +149,7 @@ void toggleOnOff(void)
 
 }
 
-void toggleSpeed(void)
+void toggleFanSpeed(void)
 {
 	size_t size = SPEED_SIZ;
 
@@ -163,7 +163,7 @@ void toggleSpeed(void)
 	}
 }
 
-void toggleOscillate(void)
+void toggleFanOscillate(void)
 {
 	size_t size = OSCILLATE_SIZ;
 

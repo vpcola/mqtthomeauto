@@ -7,9 +7,9 @@ extern "C" {
 
 #include "rmt_utils.h"
 
-void toggleOnOff(void);
-void toggleSpeed(void);
-void toggleOscillate(void);
+void toggleFanOnOff(void);
+void toggleFanSpeed(void);
+void toggleFanOscillate(void);
 
 #ifdef __cplusplus
 }

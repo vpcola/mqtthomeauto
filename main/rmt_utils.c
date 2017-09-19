@@ -1,7 +1,7 @@
 #include "rmt_utils.h"
 
 static const char * RMTTAG = "RMT_UTIL";
-static xSemaphoreHandle rmt_mux;
+//static xSemaphoreHandle rmt_mux;
 
 /*
  * @brief Build register value of waveform for NEC one data bit
@@ -71,20 +71,20 @@ void rmt_tx_init()
    // Create a mutex for tasks/threads 
    // to share the resource
    //
-   rmt_mux = xSemaphoreCreateMutex();
+   // rmt_mux = xSemaphoreCreateMutex();
 }
 
 void rmt_send_items(rmt_item32_t * items, size_t numitems)
 {
 
-    xSemaphoreTake(rmt_mux, portMAX_DELAY);
+    //xSemaphoreTake(rmt_mux, portMAX_DELAY);
 
     //To send data according to the waveform items.
     rmt_write_items(RMT_TX_CHANNEL, items, numitems, true);
     //Wait until sending is done.
     rmt_wait_tx_done(RMT_TX_CHANNEL, portMAX_DELAY);
     
-    xSemaphoreGive(rmt_mux);
+    //xSemaphoreGive(rmt_mux);
 
 }
 

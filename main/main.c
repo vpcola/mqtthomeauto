@@ -39,6 +39,8 @@ CONDITIONS OF ANY KIND, either express or implied.
 #include "i2c_routines.h"
 #include "htu21d.h"
 #include "MQTTClient.h"
+#include "rmt_europace_fan.h"
+#include "rmt_hvac_mitsubishi.h"
 
 /* The examples use simple WiFi configuration that you can set via
    'make menuconfig'.
@@ -67,8 +69,12 @@ const int MQTT_READY_BIT = BIT0;
 
 #define MQTT_TOPIC_LED "iotcebu/vergil/pwm/#"
 #define MQTT_TOPIC_SWITCH "iotcebu/vergil/switch/#"
+#define MQTT_TOPIC_FAN "iotcebu/vergil/fan/#"
+#define MQTT_TOPIC_HVAC "iotcebu/vergil/hvac/#"
 
 #define mainQUEUE_LENGTH 5 
+
+#define DEFAULT_HVAC_TEMP 26
 
 // Mutex to control access to resources from
 // different task/threads
@@ -89,6 +95,9 @@ static unsigned char mqtt_readBuf[MQTT_BUF_SIZE];
 // GPIO ports for the LED drivers
 static uint8_t led_pin[] = { 16, 17 };
 static int led_cnt = sizeof(led_pin)/sizeof(led_pin[0]);
+
+// Aircon Status
+static uint8_t acstatus = 0, actemp = DEFAULT_HVAC_TEMP;
 
 // Data types used for message passing (xQueue)
 typedef struct SensorData {
@@ -151,7 +160,106 @@ void setLED(int gpio_num,uint8_t ledchan,uint8_t duty)
     ledc_channel_config(&ledc_conf);
 }
 
+static void mqtt_message_fan_handler(MessageData *md) 
+{
+    char subtopic[100];
+    int topiclen;
 
+    xSemaphoreTake(print_mux, portMAX_DELAY);
+    printf("Topic received!: %.*s %.*s\n", md->topicName->lenstring.len, md->topicName->lenstring.data, md->message->payloadlen, (char*)md->message->payload);
+    xSemaphoreGive(print_mux);
+
+    // Get the root length of the topic
+    topiclen = strlen(MQTT_TOPIC_FAN) - 1; // without the "#"
+    sprintf(subtopic, "%.*s", md->topicName->lenstring.len - topiclen, md->topicName->lenstring.data + topiclen);
+
+    xSemaphoreTake(print_mux, portMAX_DELAY);
+    printf("Topic item : %s\n", subtopic);
+    xSemaphoreGive(print_mux);
+
+    if (strcmp(subtopic, "onoff") == 0)
+    {
+        xSemaphoreTake(print_mux, portMAX_DELAY);
+        printf("Toggle Fan On/Off\n");
+        xSemaphoreGive(print_mux);
+
+        // Toggle the on off button on IR remote
+        toggleFanOnOff();
+    }
+
+    if (strcmp(subtopic, "swing") == 0)
+    {
+        xSemaphoreTake(print_mux, portMAX_DELAY);
+        printf("Toggle Fan Swing\n");
+        xSemaphoreGive(print_mux);
+
+        toggleFanOscillate();
+    }
+
+    if (strcmp(subtopic, "speed") == 0)
+    {
+        xSemaphoreTake(print_mux, portMAX_DELAY);
+        printf("Toggle Fan Speed\n");
+        xSemaphoreGive(print_mux);
+        
+        toggleFanSpeed();
+    }
+} 
+
+static void mqtt_message_hvac_handler(MessageData *md) 
+{
+    char subtopic[100], val[100];
+    uint8_t tmpval;
+    int topiclen;
+
+    xSemaphoreTake(print_mux, portMAX_DELAY);
+    printf("Topic received!: %.*s %.*s\n", md->topicName->lenstring.len, md->topicName->lenstring.data, md->message->payloadlen, (char*)md->message->payload);
+    xSemaphoreGive(print_mux);
+
+    // Get the root length of the topic
+    topiclen = strlen(MQTT_TOPIC_HVAC) - 1; // without the "#"
+    sprintf(subtopic, "%.*s", md->topicName->lenstring.len - topiclen, md->topicName->lenstring.data + topiclen);
+
+    xSemaphoreTake(print_mux, portMAX_DELAY);
+    printf("Topic item : %s\n", subtopic);
+    xSemaphoreGive(print_mux);
+    
+     // get the value
+    sprintf(val,"%.*s",md->message->payloadlen, (char*)md->message->payload);
+    tmpval = strtol(&val[0], NULL, 0);
+   
+    if (strcmp(subtopic, "onoff") == 0)
+    {
+        xSemaphoreTake(print_mux, portMAX_DELAY);
+        printf("Setting AC to %s\n", (tmpval == 0) ? "Off":"On");
+        xSemaphoreGive(print_mux);
+
+        if (tmpval == 0) // Off
+        {
+            sendHvacCommand(HVAC_COLD, 30, FAN_SPEED_AUTO, WIDE_MIDDLE, 0); 
+            acstatus = 0;
+        }
+        else
+        {
+            sendHvacCommand(HVAC_COLD, DEFAULT_HVAC_TEMP, FAN_SPEED_AUTO, WIDE_MIDDLE, 1);
+            acstatus = 1;
+            actemp = DEFAULT_HVAC_TEMP;
+        }
+    }
+
+    if (strcmp(subtopic, "temp") == 0)
+    {
+        xSemaphoreTake(print_mux, portMAX_DELAY);
+        printf("Setting AC Temperature to %d\n", tmpval);
+        xSemaphoreGive(print_mux);
+
+        sendHvacCommand(HVAC_COLD, tmpval, FAN_SPEED_AUTO, WIDE_MIDDLE, 1);
+
+        acstatus = 1;
+        actemp = tmpval;
+    }
+
+} 
 
 static void mqtt_message_led_handler(MessageData *md) 
 {
@@ -447,6 +555,22 @@ static void mqtt_task(void *arg)
             goto exit;
         }
 
+        ret = MQTTSubscribe(&client, MQTT_TOPIC_FAN, QOS0, mqtt_message_fan_handler);
+        if (ret != SUCCESS) {
+            xSemaphoreTake(print_mux, portMAX_DELAY);
+            printf("MQTTSubscribe: %d\n", ret);
+            xSemaphoreGive(print_mux);
+            goto exit;
+        }
+
+        ret = MQTTSubscribe(&client, MQTT_TOPIC_HVAC, QOS0, mqtt_message_hvac_handler);
+        if (ret != SUCCESS) {
+            xSemaphoreTake(print_mux, portMAX_DELAY);
+            printf("MQTTSubscribe: %d\n", ret);
+            xSemaphoreGive(print_mux);
+            goto exit;
+        }
+
 #if defined(MQTT_TASK)
         if ((ret = MQTTStartTask(&client)) != pdPASS)
         {
@@ -480,9 +604,12 @@ static void mqtt_task(void *arg)
                 switch(msg.messageType)
                 {
                     case SENSOR_UPDATE:
-                        sprintf(msgbuf, "{\"temperature\":%.1f,\"humidity\":%.1f}", 
+                        sprintf(msgbuf, "{\"temperature\":%.1f,\"humidity\":%.1f,\"acstatus\":%d,\"actemp\":%d}", 
                                 msg.messagePayload.sensorData.temperature, 
-                                msg.messagePayload.sensorData.humidity);
+                                msg.messagePayload.sensorData.humidity,
+                                acstatus,
+                                actemp);
+
                         xSemaphoreTake(print_mux, portMAX_DELAY);
                         printf("*******************\n");
                         printf("MQTT Task:  MQTT Publish\n");
@@ -538,6 +665,7 @@ void app_main()
     i2c_mux = xSemaphoreCreateMutex();
 
     nvs_flash_init();
+    rmt_tx_init();
     // Initialize I2C and related peripherals connected to it
     xSemaphoreTake(i2c_mux, portMAX_DELAY);
     i2c_master_init();
