@@ -650,7 +650,7 @@ exit:
         printf("Starting again!");
         xSemaphoreGive(print_mux);
     }
-    esp_task_wdt_delete();
+    esp_task_wdt_delete(NULL); // make wouldn't build without NULL Added here
     vTaskDelete(NULL);
 }
 
